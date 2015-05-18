@@ -70,13 +70,13 @@ class MySql(AgentCheck):
 
         db = self._connect(host, port, mysql_sock, user, password, defaults_file)
 
-        # Metadata collection
-        self._collect_metadata(db, host)
-
         # Metric collection
         self._collect_metrics(host, db, tags, options)
         if Platform.is_linux():
             self._collect_system_metrics(host, db, tags)
+
+        # Metadata collection
+        self._collect_metadata(db, host)
 
     def _get_config(self, instance):
         host = instance.get('server', '')
@@ -131,11 +131,6 @@ class MySql(AgentCheck):
             raise
 
         return db
-
-    def _collect_metadata(self, db, host):
-        metadata_dict = {}
-        metadata_dict['version'] = self._get_version(db, host)
-        self.svc_metadata(metadata_dict)
 
     def _collect_metrics(self, host, db, tags, options):
         cursor = db.cursor()
@@ -196,6 +191,9 @@ class MySql(AgentCheck):
                 "SHOW SLAVE STATUS", db, tags=tags
             )
 
+    def _collect_metadata(self, db, host):
+        self._get_version(db, host)
+
     def _rate_or_gauge_statuses(self, statuses, dbResults, tags):
         for status, metric in statuses.iteritems():
             metric_name, metric_type = metric
@@ -248,6 +246,7 @@ class MySql(AgentCheck):
         version = result[0].split('-')
         version = version[0].split('.')
         self.mysql_version[host] = version
+        self.service_metadata('version', version)
         return version
 
     def _collect_scalar(self, key, dict):
